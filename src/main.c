@@ -1,11 +1,13 @@
 #include <stdio.h>
-#include <stdlib.h> // for EXIT_SUCCESS
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 
 int main(int argc, char **argv)
 {
     // run command loop
     sh_loop();
-
     return EXIT_SUCCESS;
 }
 
@@ -19,7 +21,7 @@ void sh_loop()
     do
     {
         printf("> %c");
-
+        
         // 1 - read the command from the standard input
         line = sh_read_line();
 
@@ -29,12 +31,10 @@ void sh_loop()
         // 3 - run the parsed cmd
         status = sh_execute(args);
 
-        // free up dynamically allocated memory 
         free(line);
         free(args);
 
     } while (status);
-    
 }
 
 #define SH_RL_BUFSIZE 1024
@@ -109,8 +109,50 @@ char *sh_read_line()
 #define SH_TOK_DELIM " \t\r\n\a"
 
 // this function parses the line into a list of arguments
-void sh_split_line()
+char **sh_split_line(char *line)
 {
-    
+    int bufsize = SH_TOK_BUFSIZE, position = 0;
+    char **tokens = malloc(bufsize * sizeof(char*)); // array of pointers
+    char *token;
+
+    if (!tokens)
+    {
+        fprintf(stderr, "sh: allocation error :(\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // tokenize with strtok
+    token = strtok(line, SH_TOK_DELIM);
+    while (token != NULL)
+    {
+        // store each word
+        tokens[position] = token;
+        position++;
+
+        if (position >= bufsize)
+        {
+            bufsize += SH_TOK_BUFSIZE;
+            tokens = realloc(tokens, bufsize * sizeof(char*));
+            if (!tokens)
+            {
+                fprintf(stderr, "sh: allocation error :(\n");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        token = strtok(NULL, SH_TOK_DELIM);
+    }
+
+    tokens[position] = NULL; // null terminate the list of tokens
+    return tokens;
 }
+
 // void sh_execute();
+
+int sh_launch(char **args)
+{
+    pid_t pid, wpid;
+    int status;
+
+    pid = fork
+}
