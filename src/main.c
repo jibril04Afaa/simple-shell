@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include "main.h"
 
 
 int main(int argc, char **argv)
@@ -20,13 +22,13 @@ void sh_loop()
 
     do
     {
-        printf("> %c");
+        printf("> ");
         
         // 1 - read the command from the standard input
         line = sh_read_line();
 
         // 2 - parse, by separating the cmd str into a program and arguments
-        args = sh_split_line(args);
+        args = sh_split_line(line);
 
         // 3 - run the parsed cmd
         status = sh_execute(args);
@@ -147,7 +149,24 @@ char **sh_split_line(char *line)
     return tokens;
 }
 
-// void sh_execute();
+int sh_execute(char **args)
+{
+    int i;
+
+    if (args[0] == NULL)
+    {
+        return 1; // an empty command was entered
+    }
+
+    for (i=0; i<sh_num_builtins(); i++)
+    {
+        if (strcmp(args[0], builtin_str[i]) == 0)
+        {
+            return (*builtin_func[i])(args);
+        }
+    }
+    return sh_launch(args); 
+}
 
 int sh_launch(char **args)
 {
@@ -178,4 +197,62 @@ int sh_launch(char **args)
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     }
     return 1;
+}
+
+/* Built-in shell commands */
+char *builtin_str[] = 
+{
+    "cd",
+    "help",
+    "exit"
+};
+
+int (*builtin_func[]) (char **) = 
+{
+    &sh_cd,
+    &sh_help,
+    &sh_exit
+};
+
+int sh_num_builtins()
+{
+    return sizeof(builtin_str) / sizeof(char *);
+}
+
+/* Built-in functions implementation */
+int sh_cd(char **args)
+{
+    if (args[1] == NULL) // check that the 2nd argument exists
+    {
+        fprintf(stderr, "sh: expected argument to \"cd\"\n");
+    }
+    else
+    {
+        if (chdir(args[1]) != 0) // chdir() changes the working directory
+        {
+            perror("sh");
+        }
+    }
+    return 1;
+}
+
+int sh_help(char **args)
+{
+    int i;
+    printf("Jibril's SH\n");
+    printf("Type program names and arguments, then hit enter.\n");
+    printf("The following are built-in:\n");
+
+    for (int i=0; i<sh_num_builtins(); i++)
+    {
+        printf("    %s\n", builtin_str[i]);
+    }
+
+    printf("Use the man command for information on other programs.\n");
+    return 1;
+}
+
+int sh_exit(char **args)
+{
+    return 0;
 }
